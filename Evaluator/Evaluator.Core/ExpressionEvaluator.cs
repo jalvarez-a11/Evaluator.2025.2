@@ -27,46 +27,60 @@ public class ExpressionEvaluator
                     i++;
                 }
                 postfixBuilder.Append(' ');
-                i--; // to check the space between chars
+                i--; // retrocede uno porque el for también hace i++
             }
-            else if (item == '-' && (i == 0 || IsOperator(infix[i - 1]) && infix[i - 1] != ')'))
+            // manage the negative expression at the beggining or at the end
+            else if (item == '-' && (i == 0 || (IsOperator(infix[i - 1]) || infix[i - 1] == '(')))
             {
-                postfixBuilder.Append("0 "); 
+                postfixBuilder.Append("0 ");
                 stack.Push('-');
             }
+            // Open parenthesis
+            else if (item == '(')
+            {
+                // implícit math
+                if (i > 0 && (char.IsDigit(infix[i - 1]) || infix[i - 1] == ')'))
+                {
+                    while (stack.Count > 0 && PriorityInfix('*') <= PriorityStack(stack.Peek()))
+                    {
+                        postfixBuilder.Append(stack.Pop()).Append(' ');
+                    }
+                    stack.Push('*');
+                }
+                stack.Push(item);
+            }
+            // close parenthesis
+            else if (item == ')')
+            {
+                while (stack.Count > 0 && stack.Peek() != '(')
+                {
+                    postfixBuilder.Append(stack.Pop()).Append(' ');
+                }
+                if (stack.Count > 0 && stack.Peek() == '(')
+                {
+                    stack.Pop();
+                }
+            }
+            // real operators
             else if (IsOperator(item))
             {
-                if (item == '(')
+                while (stack.Count > 0 && PriorityInfix(item) <= PriorityStack(stack.Peek()))
                 {
-                    stack.Push(item);
+                    postfixBuilder.Append(stack.Pop()).Append(' ');
                 }
-                else if (item == ')')
-                {
-                    while (stack.Count > 0 && stack.Peek() != '(')
-                    {
-                        postfixBuilder.Append(stack.Pop()).Append(' ');
-                    }
-                    if (stack.Count > 0 && stack.Peek() == '(')
-                    {
-                        stack.Pop();
-                    }
-                }
-                else
-                {
-                    while (stack.Count > 0 && PriorityInfix(item) <= PriorityStack(stack.Peek()))
-                    {
-                        postfixBuilder.Append(stack.Pop()).Append(' ');
-                    }
-                    stack.Push(item);
-                }
+                stack.Push(item);
             }
             else if (item == ' ')
             {
                 continue;
             }
+            else
+            {
+                throw new Exception($"Símbolo inválido en la expresión: {item}");
+            }
         }
 
-        // to put the stack empty
+        // to empty the stack.
         while (stack.Count > 0)
         {
             postfixBuilder.Append(stack.Pop()).Append(' ');
@@ -82,7 +96,7 @@ public class ExpressionEvaluator
 
         foreach (var token in tokens)
         {
-            if (token.Length == 1 && IsOperator(token[0]) && token[0] != '(' && token[0] != ')')
+            if (token.Length == 1 && IsOperator(token[0]))
             {
                 if (stack.Count < 2)
                     throw new Exception("Expresión inválida: operandos insuficientes.");
@@ -121,9 +135,9 @@ public class ExpressionEvaluator
         _ => throw new Exception("Operador inválido."),
     };
 
-    // Helpers
+    // Only real operators
     private static bool IsOperator(char c) =>
-        c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '(' || c == ')';
+        c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
 
     private static int PriorityInfix(char c) => c switch
     {
@@ -137,7 +151,7 @@ public class ExpressionEvaluator
     {
         '+' or '-' => 1,
         '*' or '/' => 2,
-        '^' => 4,   // the most important priority
+        '^' => 4,  
         '(' => 0,
         _ => 0
     };
